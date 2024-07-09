@@ -18,13 +18,14 @@ def ModelAvg(w):
     return w_avg
 
 class GradNormLoss(nn.Module):
-    def __init__(self, num_of_task, alpha=1.5):
+    def __init__(self, args,num_of_task, alpha=1.5):
         super(GradNormLoss, self).__init__()
         self.num_of_task = num_of_task
         self.alpha = alpha
-        self.w = nn.Parameter(torch.ones(num_of_task, dtype=torch.float))
+        self.w = nn.Parameter(torch.ones(num_of_task, dtype=torch.float,requires_grad=True)).to(args.device)
         self.l1_loss = nn.L1Loss()
         self.L_0 = None
+        self.device = args.device
 
     # standard forward pass
     def forward(self, L_t: torch.Tensor):
@@ -58,7 +59,7 @@ class GradNormLoss(nn.Module):
         self.bar_GW_t = self.GW_t.detach().mean()
         self.tilde_L_t = (self.L_t / self.L_0).detach()
         self.r_t = self.tilde_L_t / self.tilde_L_t.mean()
-        grad_loss = self.l1_loss(self.GW_t, self.bar_GW_t * (self.r_t ** self.alpha))
+        grad_loss = self.l1_loss(self.GW_t, self.bar_GW_t * (self.r_t ** self.alpha)).to(self.device)
         self.w.grad = torch.autograd.grad(grad_loss, self.w)[0]
         optimizer.step()
 
@@ -87,6 +88,9 @@ class RFC(nn.Module):
         ######### Power Reallocation as in deepcode work ###############
         if self.args.reloc == 1:
             self.total_power_reloc = Power_reallocate(args)
+    
+    def get_shared_weight(self):
+        return self.Rmodel.out.weight
 
     def power_constraint(self, inputs, isTraining, eachbatch, idx=0, direction='fw'):
         # direction = 'fw' or 'fb'
@@ -190,6 +194,7 @@ def train_model(model, args):
 
     # in each run, randomly sample a batch of data from the training dataset
     numBatch = 10000 * args.totalbatch + 1 + args.core # Total number of batches
+    Gradnormloss = GradNormLoss(args,3)
     for eachbatch in range(args.start_step,numBatch):
         bVec = torch.randint(0, 2, (args.batchSize, args.numb_block, args.block_size))
         #################################### Generate noise sequence ##################################################
@@ -248,17 +253,19 @@ def train_model(model, args):
                     preds[idx] = preds[idx].contiguous().view(-1, preds[idx].size(-1)) #=> (Batch*K) x 2
                     preds[idx] = torch.log(preds[idx])
                     loss.append(F.nll_loss(preds[idx], ys.to(args.device)))########################## This should be binary cross-entropy loss                   
-                torch.stack(loss)
-        # entropy = F.nll_loss(preds[idx], ys.to(args.device))
+                    entropy = F.nll_loss(preds[idx], ys.to(args.device))
         #         loss.backward()
             except Exception as e:
                 print(f"idx is {idx},len of preds is {len(preds)}, turn is {turn},error:{e}")
-        loss = GradNormLoss(4)
+        loss = torch.stack(loss)
+        loss = Gradnormloss(loss)
+        shared_weight = model.module.get_shared_weight()
+        Gradnormloss.additional_forward_and_backward(shared_weight,args.optimizer)
 
         ####################### Gradient Clipping optional ###########################
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_th)
         ##############################################################################
-        args.optimizer.step()
+        # args.optimizer.step()
         # Save the model
         w1 = model.state_dict()
         w_locals.append(copy.deepcopy(w1))
@@ -285,10 +292,12 @@ def train_model(model, args):
                 os.mkdir('weights')
             saveDir = 'weights/model_weights_{}_{}_'.format(snr1,snr2) + str(eachbatch)
             torch.save(model.state_dict(), saveDir)
+            torch.save(Gradnormloss.state_dict(), 'weights/loss_weights_'+ str(eachbatch))
         else:
             if not os.path.exists('weights'):
                 os.mkdir('weights')
             torch.save(model.state_dict(), 'weights/latest')
+            torch.save(Gradnormloss.state_dict(), 'weights/loss_weights')
 
 
 def EvaluateNets(model, args):

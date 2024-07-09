@@ -22,7 +22,7 @@ class GradNormLoss(nn.Module):
         super(GradNormLoss, self).__init__()
         self.num_of_task = num_of_task
         self.alpha = alpha
-        self.w = nn.Parameter(torch.ones(num_of_task, dtype=torch.float,requires_grad=True)).to(args.device)
+        self.w = nn.Parameter(torch.ones(num_of_task, dtype=torch.float),requires_grad=True).to(args.device)
         self.l1_loss = nn.L1Loss()
         self.L_0 = None
         self.device = args.device
@@ -45,7 +45,8 @@ class GradNormLoss(nn.Module):
         # do `optimizer.zero_grad()` outside
         self.total_loss.backward(retain_graph=True)
         # in standard backward pass, `w` does not require grad
-        self.w.grad.data = self.w.grad.data * 0.0
+        if self.w.grad is not None:
+            self.w.grad.data = self.w.grad.data * 0.0
 
         self.GW_t = []
         for i in range(self.num_of_task):
@@ -63,8 +64,7 @@ class GradNormLoss(nn.Module):
         self.w.grad = torch.autograd.grad(grad_loss, self.w)[0]
         optimizer.step()
 
-        self.GW_ti, self.bar_GW_t, self.tilde_L_t, 
-        self.r_t, self.L_t, self.wL_t = None, None, None, None, None, None
+        self.bar_GW_t, self.tilde_L_t, self.r_t, self.L_t, self.wL_t = None, None, None, None, None
         # re-norm
         self.w.data = self.w.data / self.w.data.sum() * self.num_of_task
 
@@ -90,7 +90,7 @@ class RFC(nn.Module):
             self.total_power_reloc = Power_reallocate(args)
     
     def get_shared_weight(self):
-        return self.Rmodel.out.weight
+        return self.Rmodel.out
 
     def power_constraint(self, inputs, isTraining, eachbatch, idx=0, direction='fw'):
         # direction = 'fw' or 'fb'
@@ -195,6 +195,7 @@ def train_model(model, args):
     # in each run, randomly sample a batch of data from the training dataset
     numBatch = 10000 * args.totalbatch + 1 + args.core # Total number of batches
     Gradnormloss = GradNormLoss(args,3)
+    Gradnormloss.train()
     for eachbatch in range(args.start_step,numBatch):
         bVec = torch.randint(0, 2, (args.batchSize, args.numb_block, args.block_size))
         #################################### Generate noise sequence ##################################################
@@ -259,7 +260,7 @@ def train_model(model, args):
                 print(f"idx is {idx},len of preds is {len(preds)}, turn is {turn},error:{e}")
         loss = torch.stack(loss)
         loss = Gradnormloss(loss)
-        shared_weight = model.module.get_shared_weight()
+        shared_weight = model.get_shared_weight()
         Gradnormloss.additional_forward_and_backward(shared_weight,args.optimizer)
 
         ####################### Gradient Clipping optional ###########################
@@ -286,6 +287,7 @@ def train_model(model, args):
             print('bert-code','Idx,round,early_stop,snr1,snr2,lr,BS,loss,BER,num,entropy=', (
             eachbatch,turn,early_stop,args.snr1,args.snr2,args.optimizer.state_dict()['param_groups'][0]['lr'], args.batchSize, loss.item(), 1 - succRate.item(),
             sum(decodeds != ys.to(args.device)).item(),entropy.item()))
+            print('weights:',Gradnormloss.w)
         ####################################################################################
         if np.mod(eachbatch, args.core * 20000) == args.core - 1 and eachbatch >= 40000:
             if not os.path.exists('weights'):
@@ -389,7 +391,7 @@ if __name__ == '__main__':
     # ======================================================= Initialize the model
     model = RFC(args).to(args.device)
     if args.device == 'cuda':
-        model = torch.nn.DataParallel(model)
+        # model = torch.nn.DataParallel(model)
         torch.backends.cudnn.benchmark = True
 
     # ======================================================= run
@@ -409,6 +411,10 @@ if __name__ == '__main__':
             checkpoint = torch.load(args.start_model)
             model.load_state_dict(checkpoint)
             print("================================ Successfully load the pretrained data!")
+
+        train_model(model, args)
+    else:
+        EvaluateNets(model, args)
 
         train_model(model, args)
     else:

@@ -17,6 +17,7 @@ def args_parser():
     parser.add_argument('--core', type=int, default=1)
     parser.add_argument('--belief_threshold', type=float, default=0.9999999)
     parser.add_argument('--truncated', type=int, default=10)
+    parser.add_argument('--temp', type=float, default=1.1)
 
     # Transformer arguments
     parser.add_argument('--heads_trx', type=int, default=1, help="number of heads for the multi-head attention")
@@ -40,7 +41,7 @@ def args_parser():
     parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
     parser.add_argument('--wd', type=float, default=0.01, help="weight decay")
     parser.add_argument('--start_model', type=str, default='None', help='the path of retrained model')
-    parser.add_argument('--test_model', type=str, default='weights/T10', help='the path of test model')
+    parser.add_argument('--test_model', type=str, default='weights/temp11', help='the path of test model')
     args = parser.parse_args()
 
     return args

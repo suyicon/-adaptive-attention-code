@@ -1,0 +1,28 @@
+Traceback (most recent call last):
+  File "/home/mc35291/repo/attn_code/baaf_loss_mo/main.py", line 231, in <module>
+    evaluate_model(model, args)
+  File "/home/mc35291/repo/attn_code/baaf_loss_mo/main.py", line 177, in evaluate_model
+    test_log,preds = model(args.belief_threshold,
+  File "/home/mc35291/anaconda3/envs/torch2.0/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1501, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/mc35291/anaconda3/envs/torch2.0/lib/python3.9/site-packages/torch/nn/parallel/data_parallel.py", line 169, in forward
+    return self.module(*inputs[0], **kwargs[0])
+  File "/home/mc35291/anaconda3/envs/torch2.0/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1501, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/mc35291/repo/attn_code/baaf_loss_mo/model.py", line 279, in forward
+    return self.forward_evaluate(belief_threshold, eachbatch, bVec, fwd_noise_par,fb_noise_par)
+  File "/home/mc35291/repo/attn_code/baaf_loss_mo/model.py", line 240, in forward_evaluate
+    belief_new, feedback = self.Rmodel(received, None, self.pe)  # Decode the sequence
+  File "/home/mc35291/anaconda3/envs/torch2.0/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1501, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/mc35291/repo/attn_code/baaf_loss_mo/nn_layers.py", line 38, in forward
+    enc_out = self.encoder(src, mask=mask, pe = pe)
+  File "/home/mc35291/anaconda3/envs/torch2.0/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1501, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/mc35291/repo/attn_code/baaf_loss_mo/nn_layers.py", line 71, in forward
+    x = self.FC1(src.float())########## => input_size to d_model dimension
+  File "/home/mc35291/anaconda3/envs/torch2.0/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1501, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/mc35291/anaconda3/envs/torch2.0/lib/python3.9/site-packages/torch/nn/modules/linear.py", line 114, in forward
+    return F.linear(input, self.weight, self.bias)
+RuntimeError: mat1 and mat2 shapes cannot be multiplied (278528x18 and 19x96)

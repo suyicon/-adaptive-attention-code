@@ -14,7 +14,7 @@ def get_clones(module, N):
 
 
 class BERT(nn.Module):
-    def __init__(self, mod, input_size, block_size, d_model, N, heads, dropout, custom_attn=True, multclass = False):
+    def __init__(self, mod, input_size, block_size, d_model, N, heads, dropout, custom_attn=True, multclass = False,temp = 1.0):
         super(BERT, self).__init__()
         self.mod = mod
         self.multclass = multclass
@@ -31,6 +31,7 @@ class BERT(nn.Module):
             else:
             	self.out = nn.Linear(d_model, 2*block_size)
         self.dropout = nn.Dropout(dropout)
+        self.temp = temp
     def forward(self, src, mask, pe):
         enc_out = self.encoder(src, mask=mask, pe = pe)
         if self.mod == "rec":
@@ -43,9 +44,9 @@ class BERT(nn.Module):
                batch = enc_out.size(0)
                numb_block = enc_out.size(1)
                enc_out = enc_out.contiguous().view(batch, numb_block*self.block_size,2)
-               output = F.softmax(enc_out, dim=-1)
+               output = F.softmax(enc_out/self.temp, dim=-1)
             else:
-            	output = F.softmax(enc_out, dim=-1)
+            	output = F.softmax(enc_out/self.temp, dim=-1)
         else:
             # encoders
             output = enc_out

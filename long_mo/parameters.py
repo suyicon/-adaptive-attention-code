@@ -41,7 +41,7 @@ def args_parser():
     parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
     parser.add_argument('--wd', type=float, default=0.01, help="weight decay")
     parser.add_argument('--start_model', type=str, default='None', help='the path of retrained model')
-    parser.add_argument('--test_model', type=str, default='weights/T10', help='the path of test model')
+    parser.add_argument('--test_model', type=str, default='weights/latest', help='the path of test model')
 
     #file
     parser.add_argument('--output_dir', type=str, default='exp/')

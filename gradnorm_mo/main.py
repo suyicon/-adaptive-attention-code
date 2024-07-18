@@ -416,6 +416,3 @@ if __name__ == '__main__':
     else:
         EvaluateNets(model, args)
 
-        train_model(model, args)
-    else:
-        EvaluateNets(model, args)

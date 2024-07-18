@@ -24,8 +24,8 @@ class RFC(nn.Module):
         self.truncated = args.truncated
         self.pe = PositionalEncoder_fixed()
         ########################################################################################################################
-        self.Tmodel = BERT("trx", args.block_size+2*(args.truncated-1), args.block_size, args.d_model_trx, args.N_trx, args.heads_trx, args.dropout, args.custom_attn,args.multclass)
-        self.Rmodel = BERT("rec", args.block_class+args.truncated,args.block_size, args.d_model_trx, args.N_trx+1, args.heads_trx, args.dropout, args.custom_attn,args.multclass)
+        self.Tmodel = BERT("trx", args.block_size+2*(args.truncated-1), args.block_size, args.d_model_trx, args.N_trx, args.heads_trx, args.dropout, args.custom_attn,args.multclass,args.temp)
+        self.Rmodel = BERT("rec", args.block_class+args.truncated,args.block_size, args.d_model_trx, args.N_trx+1, args.heads_trx, args.dropout, args.custom_attn,args.multclass,args.temp)
         # self.Rmodel = BERT("rec", args.block_class + args.truncated, args.block_size, args.d_model_trx, args.N_trx + 1,
         #                   args.heads_trx, args.dropout, args.custom_attn, args.multclass)
         ######### Power Reallocation as in deepcode work ###############
@@ -74,7 +74,7 @@ class RFC(nn.Module):
         mask = torch.zeros(args.batchSize, args.numb_block,dtype=torch.bool).to(args.device)
         if isTraining == 0:
             map_vec = torch.tensor([1, 2, 4]).to(args.device)
-            errors_list = []
+        errors_list = []
         early_stop = 0
         for idx in range(self.truncated): # Go through parity bits
             if idx == 0: # phase 0
@@ -140,18 +140,19 @@ def train_model(model, args):
         ###############################################################################################################
         ###############################################################################################################
         ################################### Curriculum learning strategy ##############################################
-        if eachbatch < args.core * 20000:
-           snr1=3* (1-eachbatch/(args.core * 20000))+ (eachbatch/(args.core * 20000)) * args.snr1
-           snr2 = 100
-           belief_threshold = 0.999+0.00099*(eachbatch/(args.core * 20000))
-        elif eachbatch < args.core * 40000:
-           snr2= 100 * (1-(eachbatch-args.core * 20000)/(args.core * 20000))+ ((eachbatch-args.core * 20000)/(args.core * 20000)) * args.snr2
-           snr1=args.snr1
-           belief_threshold = 0.99999+0.0000099*((eachbatch-args.core * 20000)/(args.core * 20000))
-        else:
-           belief_threshold = 0.9999999
-           snr2=args.snr2
-           snr1=args.snr1
+        if not args.start:
+            if eachbatch < args.core * 20000:
+                snr1=3* (1-eachbatch/(args.core * 20000))+ (eachbatch/(args.core * 20000)) * args.snr1
+                snr2 = 100
+                belief_threshold = 0.999+0.00099*(eachbatch/(args.core * 20000))
+            elif eachbatch < args.core * 40000:
+                snr2= 100 * (1-(eachbatch-args.core * 20000)/(args.core * 20000))+ ((eachbatch-args.core * 20000)/(args.core * 20000)) * args.snr2
+                snr1=args.snr1
+                belief_threshold = 0.99999+0.0000099*((eachbatch-args.core * 20000)/(args.core * 20000))
+            else:
+                belief_threshold = 0.9999999
+                snr2=args.snr2
+                snr1=args.snr1
         ################################################################################################################
         std1 = 10 ** (-snr1 * 1.0 / 10 / 2) #forward snr
         std2 = 10 ** (-snr2 * 1.0 / 10 / 2) #feedback snr
@@ -177,7 +178,7 @@ def train_model(model, args):
             model.load_state_dict(w0)
 
         # feed into model to get predictions
-        preds,turn,early_stop = model(belief_threshold,eachbatch, bVec.to(args.device), fwd_noise_par.to(args.device), isTraining=1)
+        preds,turn,early_stop,_ = model(belief_threshold,eachbatch, bVec.to(args.device), fwd_noise_par.to(args.device), isTraining=1)
         args.optimizer.zero_grad()
         if args.multclass:
            bVec_mc = torch.matmul(bVec,map_vec)

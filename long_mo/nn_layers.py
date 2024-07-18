@@ -4,9 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math, copy, pdb
 
-from matplotlib import pyplot as plt
-from torch.nn import TransformerEncoderLayer
-
 
 def get_clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for i in range(N)])

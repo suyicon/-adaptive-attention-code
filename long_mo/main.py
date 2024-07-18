@@ -135,7 +135,7 @@ def train_model(model, args):
     map_vec = torch.tensor([1,2,4])# maping block of bits to class label
 
     # in each run, randomly sample a batch of data from the training dataset
-    numBatch = 10000 * args.totalbatch*args.core + 1 + args.core # Total number of batches
+    numBatch = 10000 * args.totalbatch + 1 + args.core # Total number of batches
     for eachbatch in range(args.start_step,numBatch):
         bVec = torch.randint(0, 2, (args.batchSize, args.numb_block, args.block_size))
         #################################### Generate noise sequence ##################################################
@@ -149,9 +149,9 @@ def train_model(model, args):
         elif eachbatch < args.core * 40000:
            snr2= 100 * (1-(eachbatch-args.core * 20000)/(args.core * 20000))+ ((eachbatch-args.core * 20000)/(args.core * 20000)) * args.snr2
            snr1=args.snr1
-           belief_threshold = 0.99999+0.0000099*((eachbatch-args.core * 20000)/(args.core * 20000))
+           belief_threshold = 0.99999+(args.belief_threshold-0.99999)*((eachbatch-args.core * 20000)/(args.core * 20000))
         else:
-           belief_threshold = 0.9999999
+           belief_threshold = args.belief_threshold
            snr2=args.snr2
            snr1=args.snr1
         ################################################################################################################

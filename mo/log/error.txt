@@ -1,0 +1,1 @@
+slurmstepd: error: *** JOB 3541 ON gpu07 CANCELLED AT 2024-07-18T21:34:52 ***
